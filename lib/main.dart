@@ -1,4 +1,4 @@
-import 'package:add_to_wallet/add_to_wallet.dart';
+import 'package:apple_passkit/apple_passkit.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
@@ -13,11 +13,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Apple Pass'),
     );
   }
 }
@@ -33,11 +32,28 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late final Future<Uint8List> _passFuture;
+  final passKit = ApplePassKit();
 
   @override
   void initState() {
     super.initState();
     _passFuture = _fetchPass();
+    _passFuture.then((_) async {
+      passkit();
+    });
+  }
+
+  Future<void> passkit() async {
+    bool isAvailable = await passKit.isPassLibraryAvailable();
+    bool canAddPasses = await passKit.canAddPasses();
+
+    if (isAvailable && canAddPasses) {
+      // PassKit is available and can add passes
+      debugPrint('PassKit is available and can add passes');
+    } else {
+      // PassKit is not available or cannot add passes
+      debugPrint('PassKit is not available or cannot add passes');
+    }
   }
 
   Future<Uint8List> _fetchPass() async {
@@ -76,10 +92,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 } else if (snapshot.hasError) {
                   return Text('Error: ${snapshot.error}');
                 } else if (snapshot.hasData) {
-                  return AddToWalletButton(
-                    pkPass: snapshot.data!,
-                    width: 250,
-                    height: 50,
+                  return ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        await passKit.addPass(snapshot.data!);
+                      } catch (e) {
+                        debugPrint('Error adding pass: $e');
+                      }
+                    },
+                    child: const Text('Add to Wallet'),
                   );
                 }
                 return const Text('No data');
